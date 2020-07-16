@@ -51,9 +51,13 @@ class MyServer(BaseHTTPRequestHandler):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
         if (file_hash := params.get('file_hash', False)) and (file := return_file(*file_hash)) is not None:
+            self.send_response(200)
             self.send_header('Content-type', 'application')
+            self.end_headers()
             self.wfile.write(file)
-        self.end_headers()
+        else:
+            self.send_response(204)
+            self.end_headers()
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
