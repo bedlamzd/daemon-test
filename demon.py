@@ -17,6 +17,7 @@ def return_file(file_hash):
     print('No File')
     return None
 
+
 def store_file(file):
     file_hash = hashlib.md5(file).hexdigest()
     path = Path(f'{STORAGE}/{file_hash[:2]}/{file_hash}')
@@ -40,17 +41,21 @@ def delete_file(file_hash):
         return True
     return False
 
+
 def exists_file(file_hash):
     return Path(f'{STORAGE}/{file_hash[:2]}/{file_hash}').exists()
 
-class MyServer(BaseHTTPRequestHandler):
 
-    def do_GET(self):
-        print('get request')
-        self.send_response(200)
+class MyServer(BaseHTTPRequestHandler):
+    def _parse_query(self):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
-        if (file_hash := params.get('file_hash', False)) and (file := return_file(*file_hash)) is not None:
+        params = {key: value[0] if len(value) == 1 else value for key, value in params.items()}
+        return params
+
+    def do_GET(self):
+        params = self._parse_query()
+        if (file_hash := params.get('file_hash', False)) and (file := return_file(file_hash)) is not None:
             self.send_response(200)
             self.send_header('Content-type', 'application')
             self.end_headers()
@@ -71,8 +76,15 @@ class MyServer(BaseHTTPRequestHandler):
         self.wfile.write(response.getvalue())
 
     def do_DELETE(self):
-        # TODO
-        pass
+        params = self._parse_query()
+        res = False
+        if (file_hash := params.get('file_hash', False)):
+            res = delete_file(file_hash)
+        if res:
+            self.send_response(200)
+        else:
+            self.send_response(204)
+        self.end_headers()
 
 
 if __name__ == '__main__':
