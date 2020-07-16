@@ -51,7 +51,7 @@ class MyServer(BaseHTTPRequestHandler):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
         if (file_hash := params.get('file_hash', False)) and (file := return_file(*file_hash)) is not None:
-            self.send_header('Content-type', 'file')
+            self.send_header('Content-type', 'application')
             self.wfile.write(file)
         self.end_headers()
 
