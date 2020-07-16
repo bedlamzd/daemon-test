@@ -10,13 +10,12 @@ PORT = 8080
 
 
 def return_file(file_hash):
-    try:
+    if exists_file(file_hash):
         with open(f'{STORAGE}/{file_hash[:2]}/{file_hash}', 'rb') as f:
             file = f.read()
         return file
-    except:
-        print('No File')
-
+    print('No File')
+    return None
 
 def store_file(file):
     file_hash = hashlib.md5(file).hexdigest()
@@ -29,7 +28,8 @@ def store_file(file):
 
 
 def delete_file(file_hash):
-    if (file := Path(f'{STORAGE}/{file_hash[:2]}/{file_hash}')).exists():
+    if exists_file(file_hash):
+        file = Path(f'{STORAGE}/{file_hash[:2]}/{file_hash}')
         file.unlink()
         print('File deleted.')
         try:
@@ -40,6 +40,8 @@ def delete_file(file_hash):
         return True
     return False
 
+def exists_file(file_hash):
+    return Path(f'{STORAGE}/{file_hash[:2]}/{file_hash}').exists()
 
 class MyServer(BaseHTTPRequestHandler):
 
