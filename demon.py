@@ -60,10 +60,10 @@ class MyServer(BaseHTTPRequestHandler):
         body = self.rfile.read(content_length)
         file_hash = store_file(body)
         self.send_response(200)
+        self.send_header('Content-type', 'application/json')
         self.end_headers()
         response = BytesIO()
-        response.write(b'Hash: ')
-        response.write(file_hash.encode('utf-8'))
+        response.write(b'{"Hash": "%s"}' % file_hash.encode('utf-8'))
         self.wfile.write(response.getvalue())
 
     def do_DELETE(self):
