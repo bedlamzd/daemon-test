@@ -50,8 +50,8 @@ class MyServer(BaseHTTPRequestHandler):
         params = urllib.parse.parse_qs(query)
         if (file_hash := params.get('file_hash', False)) and (file := return_file(*file_hash)) is not None:
             self.send_header('Content-type', 'file')
-            self.end_headers()
             self.wfile.write(file)
+        self.end_headers()
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
@@ -72,6 +72,7 @@ class MyServer(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     # TODO: make real daemon out of it
     web_server = HTTPServer((HOST, PORT), MyServer)
+    print(web_server.server_address)
     print('Server running')
 
     try:
