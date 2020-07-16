@@ -3,10 +3,17 @@ import hashlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 from pathlib import Path
+from daemon import pidfile, DaemonContext
+import signal
+import sys
+import argparse
 
 STORAGE = 'storage'
 HOST = 'localhost'
 PORT = 8080
+UMASK = '0o002'
+WORKING_DIR = '/var/lib/demon'
+PID_FILE = '/var/run/demon.pid'
 
 
 def return_file(file_hash):
@@ -87,16 +94,37 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-if __name__ == '__main__':
-    # TODO: make real daemon out of it
-    web_server = HTTPServer((HOST, PORT), MyServer)
-    print(web_server.server_address)
+def run(host, port):
+    web_server = HTTPServer((host, port), MyServer)
     print('Server running')
 
-    try:
-        web_server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+    web_server.serve_forever()
 
     web_server.server_close()
     print("Server stopped.")
+
+
+def shutdown(signum, frame):
+    sys.exit(0)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-wd', '--working_directory', default=WORKING_DIR,
+                    help='daemon working directory')
+parser.add_argument('--pid', default=PID_FILE, help='specify pid file')
+parser.add_argument('--umask', default=UMASK, help='specify umask')
+parser.add_argument('-p', '--port', default=PORT, type=int, help='specify server port')
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    context = DaemonContext(
+        working_directory=args.working_directory,
+        umask=int(args.umask, base=8),
+        pidfile=pidfile.PIDLockFile(args.pid),
+        signal_map={
+            signal.SIGTERM: shutdown,
+            signal.SIGHUP: shutdown,
+        }
+    )
+    with context:
+        run(HOST, args.port)
