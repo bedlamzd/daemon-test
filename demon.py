@@ -1,17 +1,26 @@
 import urllib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
-from daemon import pidfile, DaemonContext
-import signal
 import sys
 import argparse
 from fileHandler import FileHandler
+
+__file_handler = None
+
+
+def set_file_handler(handler: FileHandler):
+    __file_handler = handler
+
+
+def get_file_handler() -> FileHandler:
+    assert __file_handler is not None
+    return __file_handler
+
 
 # defaults
 STORAGE = 'storage'
 SALT = b''
 CHUNKSIZE = 4096
-file_handler = FileHandler(storage_path=STORAGE, salt=SALT, chunksize=CHUNKSIZE)
 HOST = 'localhost'
 PORT = 8080
 UMASK = '0o002'
@@ -36,11 +45,11 @@ class MyServer(BaseHTTPRequestHandler):
         GET request handler. Returns file by hash if exists
         """
         params = self._parse_query()
-        if (file_hash := params.get('file_hash', False)) and (file := file_handler.get_file(file_hash)):
+        if (file_hash := params.get('file_hash', False)) and (file := get_file_handler().get_file(file_hash)):
             self.send_response(200)
             self.send_header('Content-type', 'application')
             self.end_headers()
-            while data := file.read(file_handler.chunksize):
+            while data := file.read(get_file_handler().chunksize):
                 self.wfile.write(data)
         else:
             self.send_response(204)
@@ -51,7 +60,7 @@ class MyServer(BaseHTTPRequestHandler):
         POST request handler. Returns json (hopefully) with hash of file in request.
         """
         content_length = int(self.headers['Content-Length'])
-        file_hash = file_handler.save_file(self.rfile, content_length)
+        file_hash = get_file_handler().save_file(self.rfile, content_length)
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
@@ -64,7 +73,7 @@ class MyServer(BaseHTTPRequestHandler):
         DELETE request handler. Deletes file by hash if exists.
         """
         params = self._parse_query()
-        if (file_hash := params.get('file_hash', False)) and file_handler.delete_file(file_hash):
+        if (file_hash := params.get('file_hash', False)) and get_file_handler().delete_file(file_hash):
             self.send_response(200)
         else:
             self.send_response(204)
@@ -102,8 +111,10 @@ parser.add_argument('-cs', '--chunksize', default=CHUNKSIZE, type=int, help='spe
 parser.add_argument('-s', '--storage', default=STORAGE, help='specify read chunk size')
 
 if __name__ == '__main__':
+    from daemon import pidfile, DaemonContext
+    import signal
     args = parser.parse_args()
-    file_handler = FileHandler(args.salt, args.chunksize, args.storage)
+    set_file_handler(FileHandler(args.salt, args.chunksize, args.storage))
     context = DaemonContext(  # setup daemon
         working_directory=args.working_directory,
         umask=int(args.umask, base=8),
